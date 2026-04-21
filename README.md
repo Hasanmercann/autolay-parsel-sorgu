@@ -1,64 +1,86 @@
 # AutoLay
 
-Python ile AutoCAD entegrasyonu ile Türkiye mevzuatına uygun mimari ruhsat projesi üretimi.
+AutoCAD'e bağlanarak TKGM'den otomatik parsel koordinatı çeken ve çizim yapan Python aracı.
 
-## Proje Durumu
+## Ne Yapar?
 
-**Aşama 1 - Temel Altyapı** (Devam ediyor)
+1. TKGM CBS API'sinden il/ilçe/mahalle/ada/parsel bilgisiyle arsa koordinatlarını çeker
+2. AutoCAD'de `TKGM-ARSA` katmanına kapalı LWPolyline olarak çizer
+3. Tkinter arayüzüyle dropdown'dan il/ilçe/mahalle seçimi, ada/parsel klavyeyle girilir
+
+## Gereksinimler
+
+- Python 3.10+
+- AutoCAD 2026 (açık ve bir .dwg belgesiyle)
+- Windows
 
 ## Kurulum
 
-> Not: Bu depoda klasor yapisi cift katmanli olabilir.
-> Komutlari README'nin bulundugu klasorde calistirin.
-> "No module named autolay" hatasi alirsaniz bir ust klasordesiniz demektir.
-
-1. Python 3.14 kurulu olmalıdır.
-
-2. Sanal ortam oluştur ve etkinleştir:
-   ```bash
-   python -m venv venv
-   venv\Scripts\activate
-   ```
-
-3. Gerekli paketleri kur:
-   ```bash
-   pip install pywin32
-   ```
-
-4. AutoCAD 2026'nın açık olduğundan emin ol.
-
-5. Projeyi çalıştır:
-   ```bash
-   python -m autolay
-   ```
-
-## Hizli Baslatma (Dis Klasorden)
-
-Eger bir ust klasorde calisiyorsaniz su komutla dogru klasore gecip projeyi baslatabilirsiniz:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\Calistir_AutoLay.ps1
+```bash
+git clone https://github.com/Hasanmercann/autolay.git
+cd autolay
+python -m venv venv
+venv\Scripts\activate
+pip install pywin32 requests playwright
+playwright install chromium
 ```
 
-Alternatif olarak cift tikla calistirmak icin dis klasorde bulunan
-`Calistir_AutoLay.bat` dosyasini kullanabilirsiniz.
+## Kullanım
+
+```bash
+# GUI ile çalıştır (Ana kullanım)
+python -m autolay
+```
+
+AutoCAD açık olmalı. Pencerede il/ilçe/mahalle seçip ada ve parsel numarasını girin, parsel AutoCAD'e çizilir.
+
+### Sadece TKGM sorgusu (AutoCAD gerekmez)
+
+```python
+from autolay.tkgm import TKGMOkuyucu
+
+ok = TKGMOkuyucu()
+sonuc = ok.parsel_sorgula("KONYA", "ILGIN", "TEKELER", "175", "1")
+print(sonuc.koseler)   # [(x1,y1), ...] rölatif metre
+print(sonuc.alan_m2)   # 41747.0
+```
+
+### Yeni il eklemek
+
+Önbellekte olmayan iller için Playwright ile bir kez çalıştırılır:
+
+```bash
+python autolay/tkgm/id_olustur.py ANKARA
+python autolay/tkgm/id_olustur.py ISTANBUL
+
+# Tüm Türkiye (~3-5 saat):
+python autolay/tkgm/id_olustur_tumtur.py
+python autolay/tkgm/id_olustur_tumtur.py --eksik   # sadece eksikler
+```
 
 ## Klasör Yapısı
 
 ```
-Autolay/
-├── autolay/          # Ana Python paketi
-│   ├── core/         # Çekirdek modüller (AutoCAD bağlantısı vb.)
-│   ├── drawing/      # Çizim modülleri
-│   └── utils/        # Yardımcı araçlar
-├── docs/             # Dokümantasyon
-├── tests/            # Test dosyaları
-├── eski_denemeler/   # İlk deneme scriptleri (arşiv)
-└── venv/             # Sanal ortam
+autolay/
+├── core/        — AutoCAD COM bağlantısı ve hata sınıfları
+├── cizim/       — AutoCAD çizim araçları (GeometryDrawer, LayerManager)
+├── tkgm/        — TKGM parsel sorgu ve çizim paketi
+│   ├── okuyucu.py         TKGM CBS API istemcisi
+│   ├── cizici.py          AutoCAD'e çizim
+│   ├── idler.json         il/ilçe/mahalle ID önbelleği
+│   ├── id_olustur.py      tek il için önbellek oluşturucu
+│   └── id_olustur_tumtur.py  81 il için önbellek oluşturucu
+├── gui/         — Tkinter parsel giriş penceresi
+├── mimari/      — İmar hesapları (çekme mesafeleri, TAKS/KAKS)
+├── utils/       — Logger, konsol, geometri yardımcıları
+└── config/      — Sabitler
+tests/           — Test dosyaları
 ```
 
-## Teknolojiler
+## Testler
 
-- Python 3.14
-- pywin32 (AutoCAD COM bağlantısı için)
-- AutoCAD 2026
+```bash
+python tests/test_tkgm.py           # TKGM API testi (internet gerekli)
+python tests/test_tkgm_autocad.py   # AutoCAD entegrasyon testi
+python tests/test_geometri.py       # Geometri hesapları
+```
