@@ -1,4 +1,4 @@
-"""
+﻿"""
 tests/test_layers.py
 
 LayerManager sınıfının katman oluşturma, aktif yapma, listeleme
@@ -21,8 +21,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from autolay.utils.konsol import utf8_aktif_et
 from autolay.core.baglanti import AutoCADConnector
 from autolay.core.hatalar import AktifCizimYokHatasi
-from autolay.drawing.shapes import GeometryDrawer
-from autolay.drawing.layers import LayerManager
+from autolay.cizim.shapes import GeometryDrawer
+from autolay.cizim.layers import LayerManager
 
 # Türkçe karakterlerin konsolda doğru görünmesi için UTF-8'i etkinleştir
 utf8_aktif_et()

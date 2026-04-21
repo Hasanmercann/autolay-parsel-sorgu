@@ -1,4 +1,4 @@
-"""
+﻿"""
 tests/test_tkgm_autocad.py
 
 TKGM'den parsel çek → AutoCAD'e LWPolyline olarak çiz.
@@ -21,9 +21,9 @@ from autolay.utils.konsol import utf8_aktif_et
 from autolay.utils.logger import logger_olustur
 from autolay.core.baglanti import AutoCADConnector
 from autolay.core.hatalar import AktifCizimYokHatasi
-from autolay.drawing.shapes import GeometryDrawer
-from autolay.drawing.layers import LayerManager
-from autolay.okuyucu.tkgm_okuyucu import TKGMOkuyucu
+from autolay.cizim.shapes import GeometryDrawer
+from autolay.cizim.layers import LayerManager
+from autolay.tkgm.okuyucu import TKGMOkuyucu
 
 utf8_aktif_et()
 log = logger_olustur(__name__)

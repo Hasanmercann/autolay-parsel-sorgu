@@ -1,4 +1,4 @@
-"""
+﻿"""
 tests/test_input_yoneticisi.py
 
 InputManager sınıfının interaktif testini yapar.
@@ -23,7 +23,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from autolay.utils.konsol import utf8_aktif_et
 from autolay.core.baglanti import AutoCADConnector
 from autolay.core.hatalar import AktifCizimYokHatasi
-from autolay.drawing.shapes import GeometryDrawer
+from autolay.cizim.shapes import GeometryDrawer
 from autolay.utils.input_yoneticisi import InputManager
 from autolay.utils.logger import logger_olustur
 

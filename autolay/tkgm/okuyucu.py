@@ -1,4 +1,4 @@
-"""
+﻿"""
 tkgm_okuyucu.py — TKGMOkuyucu modülü
 
 TKGM CBS API'sini kullanarak il/ilçe/mahalle/ada/parsel bilgisinden
@@ -31,8 +31,8 @@ import math
 
 from autolay.utils.logger import logger_olustur
 
-# Önbellek dosyası: autolay/okuyucu/tkgm_idler.json
-_ONBELLEK_YOLU = os.path.join(os.path.dirname(__file__), "tkgm_idler.json")
+# Önbelleğ dosyası: autolay/tkgm/idler.json
+_ONBELLEK_YOLU = os.path.join(os.path.dirname(__file__), "idler.json")
 _CBS_API = "https://cbsapi.tkgm.gov.tr/megsiswebapi.v3.1/api/parsel"
 
 

@@ -4,7 +4,8 @@ Sadece kullanilacak il icin mahalle id'lerini ceker.
 Kullanim: python tests/tkgm_id_olustur_hizli.py KONYA
 """
 import sys, os, json
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+
 
 from playwright.sync_api import sync_playwright
 

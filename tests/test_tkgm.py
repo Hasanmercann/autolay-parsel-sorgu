@@ -1,4 +1,4 @@
-"""
+﻿"""
 tests/test_tkgm.py
 
 TKGM'den parsel koordinatı çekme testi.
@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from autolay.utils.konsol import utf8_aktif_et
 utf8_aktif_et()
 
-from autolay.okuyucu.tkgm_okuyucu import TKGMOkuyucu
+from autolay.tkgm.okuyucu import TKGMOkuyucu
 
 
 def test_tkgm():

@@ -1,10 +1,10 @@
-"""AutoLay komut satiri giris noktasi."""
+﻿"""AutoLay komut satiri giris noktasi."""
 
 from autolay.core.baglanti import AutoCADConnector
 from autolay.core.hatalar import AktifCizimYokHatasi
-from autolay.drawing.shapes import GeometryDrawer
-from autolay.drawing.layers import LayerManager
-from autolay.okuyucu.tkgm_okuyucu import TKGMOkuyucu
+from autolay.cizim.shapes import GeometryDrawer
+from autolay.cizim.layers import LayerManager
+from autolay.tkgm.okuyucu import TKGMOkuyucu
 from autolay.gui.parsel_dialog import parsel_bilgisi_al
 from autolay.utils.konsol import utf8_aktif_et
 

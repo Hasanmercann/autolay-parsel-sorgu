@@ -1,10 +1,10 @@
-import sys
+﻿import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from autolay.utils.konsol import utf8_aktif_et
 from autolay.core.baglanti import AutoCADConnector
-from autolay.okuyucu.arsa_okuyucu import ArsaOkuyucu
+from autolay.tkgm.arsa_okuyucu import ArsaOkuyucu
 from autolay.mimari.arsa import ArsaCizici
 from autolay.mimari.cekme import CekmeCizici
 from autolay.mimari.veriler import MimariVeriler

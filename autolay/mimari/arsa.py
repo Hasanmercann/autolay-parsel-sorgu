@@ -1,4 +1,4 @@
-"""
+﻿"""
 arsa.py — ArsaCizici modülü
 
 AutoCAD üzerinde arsa sınırlarını çizmek, alanını hesaplamak ve
@@ -12,8 +12,8 @@ Bağımlılıklar:
 """
 
 from autolay.core.baglanti import AutoCADConnector
-from autolay.drawing.shapes import GeometryDrawer
-from autolay.drawing.layers import LayerManager
+from autolay.cizim.shapes import GeometryDrawer
+from autolay.cizim.layers import LayerManager
 from autolay.utils.geometri import GeometryUtils
 from autolay.utils.logger import logger_olustur
 from autolay.core.hatalar import YetersizKoseHatasi

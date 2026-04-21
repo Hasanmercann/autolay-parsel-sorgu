@@ -1,4 +1,4 @@
-"""
+﻿"""
 tests/test_geometry.py
 
 GeometryDrawer sınıfının tüm çizim metodlarını AutoCAD üzerinde test eder.
@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from autolay.utils.konsol import utf8_aktif_et
 from autolay.core.baglanti import AutoCADConnector
 from autolay.core.hatalar import AktifCizimYokHatasi
-from autolay.drawing.shapes import GeometryDrawer
+from autolay.cizim.shapes import GeometryDrawer
 
 # Türkçe karakterlerin konsolda doğru görünmesi için UTF-8'i etkinleştir
 utf8_aktif_et()

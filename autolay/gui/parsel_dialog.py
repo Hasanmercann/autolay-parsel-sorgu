@@ -1,4 +1,4 @@
-"""
+﻿"""
 autolay/gui/parsel_dialog.py
 
 Parsel bilgisi giriş penceresi.
@@ -20,7 +20,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 
 _ONBELLEK_YOLU = os.path.join(
-    os.path.dirname(__file__), "..", "okuyucu", "tkgm_idler.json"
+    os.path.dirname(__file__), "..", "tkgm", "idler.json"
 )
 
 

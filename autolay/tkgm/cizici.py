@@ -1,11 +1,11 @@
-"""
+﻿"""
 tkgm_autocad.py — TKGM'den AutoCAD'e parsel çizici
 
 TKGM CBS API'sinden parsel koordinatlarını çeker ve açık olan
 AutoCAD belgesine poligon olarak çizer.
 
 Kullanım:
-    from autolay.okuyucu.tkgm_autocad import tkgm_parsel_ciz
+    from autolay.tkgm.cizici import tkgm_parsel_ciz
 
     tkgm_parsel_ciz(
         il="KONYA", ilce="ILGIN", mahalle="TEKELER",
@@ -13,18 +13,16 @@ Kullanım:
     )
 
 Komut satırından:
-    python -m autolay.okuyucu.tkgm_autocad KONYA ILGIN TEKELER 175 1
+    python -m autolay.tkgm.cizici KONYA ILGIN TEKELER 175 1
 """
 
 import sys
 import os
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
-
 from autolay.core.baglanti import AutoCADConnector
-from autolay.drawing.shapes import GeometryDrawer
-from autolay.drawing.layers import LayerManager
-from autolay.okuyucu.tkgm_okuyucu import TKGMOkuyucu
+from autolay.cizim.shapes import GeometryDrawer
+from autolay.cizim.layers import LayerManager
+from autolay.tkgm.okuyucu import TKGMOkuyucu
 from autolay.utils.konsol import utf8_aktif_et
 from autolay.utils.logger import logger_olustur
 
@@ -91,9 +89,9 @@ if __name__ == "__main__":
     args = sys.argv[1:]
     if len(args) != 5:
         print(
-            "Kullanım: python -m autolay.okuyucu.tkgm_autocad "
+            "Kullanım: python -m autolay.tkgm.cizici "
             "<IL> <ILCE> <MAHALLE> <ADA> <PARSEL>\n"
-            "Örnek   : python -m autolay.okuyucu.tkgm_autocad "
+            "Örnek   : python -m autolay.tkgm.cizici "
             "KONYA ILGIN TEKELER 175 1"
         )
         sys.exit(1)
