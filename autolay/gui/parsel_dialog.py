@@ -1,23 +1,27 @@
 ﻿"""
 autolay/gui/parsel_dialog.py
 
-Parsel bilgisi giriş penceresi.
+Parsel çizici penceresi.
 
-Il/ilçe/mahalle dropdown'ları tkgm_idler.json'dan dinamik olarak dolar.
-Ada ve parsel numaraları klavyeyle girilir.
+AutoCAD connector'ı alır; il/ilçe/mahalle seçimi, TKGM sorgusu ve
+AutoCAD'e çizimi tek pencerede yönetir. Birden fazla parsel arka arkaya
+çizilebilir; pencereyi kapatmak için "Kapat" butonu kullanılır.
 
 Kullanım:
     from autolay.gui.parsel_dialog import parsel_bilgisi_al
-
-    sonuc = parsel_bilgisi_al()
-    if sonuc:
-        il, ilce, mahalle, ada, parsel = sonuc
+    parsel_bilgisi_al(connector)
 """
 
 import os
 import json
+import threading
 import tkinter as tk
 from tkinter import ttk, messagebox
+import pythoncom
+
+from autolay.tkgm.okuyucu import TKGMOkuyucu
+from autolay.cizim.shapes import GeometryDrawer
+from autolay.cizim.layers import LayerManager
 
 _ONBELLEK_YOLU = os.path.join(
     os.path.dirname(__file__), "..", "tkgm", "idler.json"
@@ -33,26 +37,22 @@ def _idleri_yukle() -> dict:
 
 class ParselDialog:
     """
-    Parsel bilgisi giriş penceresi.
+    Parsel çizici penceresi.
 
-    Kullanım:
-        dialog = ParselDialog()
-        sonuc = dialog.goster()
-        # sonuc: (il, ilce, mahalle, ada, parsel) veya None (iptal)
+    connector: AutoCADConnector — açık ve bağlı connector nesnesi
     """
 
-    def __init__(self):
+    def __init__(self, connector):
+        self._connector = connector
         self._idler = _idleri_yukle()
-        self._sonuc = None
 
         self._root = tk.Tk()
-        self._root.title("AutoLay — Parsel Sorgula")
+        self._root.title("AutoLay — Parsel Çizici")
         self._root.resizable(False, False)
-        self._root.configure(bg="#f0f0f0")
+        self._root.configure(bg="#f5f5f5")
 
-        # Ekran ortasına taşı
+        genislik, yukseklik = 440, 420
         self._root.update_idletasks()
-        genislik, yukseklik = 400, 340
         x = (self._root.winfo_screenwidth() - genislik) // 2
         y = (self._root.winfo_screenheight() - yukseklik) // 2
         self._root.geometry(f"{genislik}x{yukseklik}+{x}+{y}")
@@ -60,109 +60,108 @@ class ParselDialog:
         self._arayuz_olustur()
 
     def _arayuz_olustur(self):
-        ana = tk.Frame(self._root, bg="#f0f0f0", padx=20, pady=15)
+        # --- Üst başlık şeridi ---
+        ust = tk.Frame(self._root, bg="#2c3e50", pady=8)
+        ust.pack(fill=tk.X)
+
+        tk.Label(
+            ust,
+            text="AutoLay  —  TKGM Parsel Çizici",
+            font=("Segoe UI", 10, "bold"),
+            bg="#2c3e50", fg="white",
+        ).pack(side=tk.LEFT, padx=15)
+
+        # AutoCAD bağlantı durumu
+        try:
+            dosya = self._connector.dosya_adi()
+            acad_text = f"AutoCAD: {dosya}  ✓"
+            acad_renk = "#2ecc71"
+        except Exception:
+            acad_text = "AutoCAD: bağlı değil"
+            acad_renk = "#e74c3c"
+
+        tk.Label(
+            ust, text=acad_text,
+            font=("Segoe UI", 8),
+            bg="#2c3e50", fg=acad_renk,
+        ).pack(side=tk.RIGHT, padx=15)
+
+        # --- Form alanları ---
+        ana = tk.Frame(self._root, bg="#f5f5f5", padx=20, pady=15)
         ana.pack(fill=tk.BOTH, expand=True)
 
-        # Başlık
-        baslik = tk.Label(
-            ana,
-            text="Parsel Bilgilerini Girin",
-            font=("Segoe UI", 12, "bold"),
-            bg="#f0f0f0",
-            fg="#2c3e50",
-        )
-        baslik.grid(row=0, column=0, columnspan=2, pady=(0, 15), sticky="w")
+        ef = ("Segoe UI", 9)
 
-        etiket_font = ("Segoe UI", 9)
-        widget_font = ("Segoe UI", 9)
+        def satir(etiket, satir_no):
+            tk.Label(ana, text=etiket, font=ef, bg="#f5f5f5").grid(
+                row=satir_no, column=0, sticky="w", pady=4
+            )
 
-        # Il
-        tk.Label(ana, text="İl:", font=etiket_font, bg="#f0f0f0").grid(
-            row=1, column=0, sticky="w", pady=4
-        )
+        # İl
+        satir("İl:", 0)
         self._il_var = tk.StringVar()
-        self._il_cb = ttk.Combobox(
-            ana, textvariable=self._il_var, font=widget_font,
-            width=28, state="readonly"
-        )
-        self._il_cb.grid(row=1, column=1, sticky="ew", pady=4)
+        self._il_cb = ttk.Combobox(ana, textvariable=self._il_var, font=ef, width=32, state="readonly")
+        self._il_cb.grid(row=0, column=1, sticky="ew", pady=4)
         self._il_cb.bind("<<ComboboxSelected>>", self._il_degisti)
 
         # İlçe
-        tk.Label(ana, text="İlçe:", font=etiket_font, bg="#f0f0f0").grid(
-            row=2, column=0, sticky="w", pady=4
-        )
+        satir("İlçe:", 1)
         self._ilce_var = tk.StringVar()
-        self._ilce_cb = ttk.Combobox(
-            ana, textvariable=self._ilce_var, font=widget_font,
-            width=28, state="readonly"
-        )
-        self._ilce_cb.grid(row=2, column=1, sticky="ew", pady=4)
+        self._ilce_cb = ttk.Combobox(ana, textvariable=self._ilce_var, font=ef, width=32, state="readonly")
+        self._ilce_cb.grid(row=1, column=1, sticky="ew", pady=4)
         self._ilce_cb.bind("<<ComboboxSelected>>", self._ilce_degisti)
 
         # Mahalle
-        tk.Label(ana, text="Mahalle:", font=etiket_font, bg="#f0f0f0").grid(
-            row=3, column=0, sticky="w", pady=4
-        )
+        satir("Mahalle:", 2)
         self._mahalle_var = tk.StringVar()
-        self._mahalle_cb = ttk.Combobox(
-            ana, textvariable=self._mahalle_var, font=widget_font,
-            width=28, state="readonly"
-        )
-        self._mahalle_cb.grid(row=3, column=1, sticky="ew", pady=4)
+        self._mahalle_cb = ttk.Combobox(ana, textvariable=self._mahalle_var, font=ef, width=32, state="readonly")
+        self._mahalle_cb.grid(row=2, column=1, sticky="ew", pady=4)
 
-        # Ayraç
-        ttk.Separator(ana, orient="horizontal").grid(
-            row=4, column=0, columnspan=2, sticky="ew", pady=10
-        )
+        ttk.Separator(ana, orient="horizontal").grid(row=3, column=0, columnspan=2, sticky="ew", pady=8)
 
         # Ada
-        tk.Label(ana, text="Ada No:", font=etiket_font, bg="#f0f0f0").grid(
-            row=5, column=0, sticky="w", pady=4
-        )
+        satir("Ada No:", 4)
         self._ada_var = tk.StringVar()
-        ada_entry = ttk.Entry(ana, textvariable=self._ada_var, font=widget_font, width=30)
-        ada_entry.grid(row=5, column=1, sticky="ew", pady=4)
+        ttk.Entry(ana, textvariable=self._ada_var, font=ef, width=34).grid(row=4, column=1, sticky="ew", pady=4)
 
         # Parsel
-        tk.Label(ana, text="Parsel No:", font=etiket_font, bg="#f0f0f0").grid(
-            row=6, column=0, sticky="w", pady=4
-        )
+        satir("Parsel No:", 5)
         self._parsel_var = tk.StringVar()
-        parsel_entry = ttk.Entry(
-            ana, textvariable=self._parsel_var, font=widget_font, width=30
-        )
-        parsel_entry.grid(row=6, column=1, sticky="ew", pady=4)
+        ttk.Entry(ana, textvariable=self._parsel_var, font=ef, width=34).grid(row=5, column=1, sticky="ew", pady=4)
 
-        # Enter tuşu sorgula butonuna bassın
-        self._root.bind("<Return>", lambda e: self._sorgula())
+        # Sonuç / durum etiketi
+        self._sonuc_var = tk.StringVar(value="")
+        self._sonuc_label = tk.Label(
+            ana, textvariable=self._sonuc_var,
+            font=("Segoe UI", 9, "italic"),
+            bg="#f5f5f5", fg="#555555",
+            wraplength=360, justify="left",
+        )
+        self._sonuc_label.grid(row=6, column=0, columnspan=2, sticky="w", pady=(10, 0))
 
         # Butonlar
-        btn_cerceve = tk.Frame(ana, bg="#f0f0f0")
-        btn_cerceve.grid(row=7, column=0, columnspan=2, pady=(15, 0), sticky="e")
+        btn_f = tk.Frame(ana, bg="#f5f5f5")
+        btn_f.grid(row=7, column=0, columnspan=2, pady=(12, 0), sticky="e")
 
-        ttk.Button(btn_cerceve, text="İptal", width=10, command=self._iptal).pack(
-            side=tk.RIGHT, padx=(8, 0)
-        )
-        sorgula_btn = ttk.Button(
-            btn_cerceve, text="Sorgula →", width=12, command=self._sorgula
-        )
-        sorgula_btn.pack(side=tk.RIGHT)
+        ttk.Button(btn_f, text="Kapat", width=10, command=self._kapat).pack(side=tk.RIGHT, padx=(8, 0))
+        self._ciz_btn = ttk.Button(btn_f, text="Çiz  →", width=12, command=self._ciz)
+        self._ciz_btn.pack(side=tk.RIGHT)
 
         ana.columnconfigure(1, weight=1)
+        self._root.bind("<Return>", lambda e: self._ciz())
 
-        # İl listesini doldur
+        # Dropdown'ları doldur
         iller = sorted(self._idler.keys())
         self._il_cb["values"] = iller
         if iller:
             self._il_cb.current(0)
             self._il_degisti()
 
+    # --- Dropdown değişim olayları ---
+
     def _il_degisti(self, event=None):
         il = self._il_var.get()
-        ilceler = sorted(
-            self._idler.get(il, {}).get("ilceler", {}).keys()
-        )
+        ilceler = sorted(self._idler.get(il, {}).get("ilceler", {}).keys())
         self._ilce_cb["values"] = ilceler
         self._ilce_var.set("")
         self._mahalle_cb["values"] = []
@@ -175,93 +174,97 @@ class ParselDialog:
         il = self._il_var.get()
         ilce = self._ilce_var.get()
         mahalleler = sorted(
-            self._idler.get(il, {})
-            .get("ilceler", {})
-            .get(ilce, {})
-            .get("mahalleler", {})
-            .keys()
+            self._idler.get(il, {}).get("ilceler", {}).get(ilce, {}).get("mahalleler", {}).keys()
         )
         self._mahalle_cb["values"] = mahalleler
         self._mahalle_var.set("")
         if mahalleler:
             self._mahalle_cb.current(0)
 
-    def _sorgula(self):
+    # --- Çiz butonu ---
+
+    def _ciz(self):
         il = self._il_var.get().strip()
         ilce = self._ilce_var.get().strip()
         mahalle = self._mahalle_var.get().strip()
         ada = self._ada_var.get().strip()
         parsel = self._parsel_var.get().strip()
 
-        if not il:
-            messagebox.showwarning("Eksik Bilgi", "Lütfen bir il seçin.", parent=self._root)
-            return
-        if not ilce:
-            messagebox.showwarning("Eksik Bilgi", "Lütfen bir ilçe seçin.", parent=self._root)
-            return
-        if not mahalle:
-            messagebox.showwarning("Eksik Bilgi", "Lütfen bir mahalle seçin.", parent=self._root)
-            return
-        if not ada:
-            messagebox.showwarning("Eksik Bilgi", "Ada numarasını girin.", parent=self._root)
-            return
-        if not parsel:
-            messagebox.showwarning("Eksik Bilgi", "Parsel numarasını girin.", parent=self._root)
+        if not all([il, ilce, mahalle, ada, parsel]):
+            messagebox.showwarning("Eksik Bilgi", "Tüm alanları doldurun.", parent=self._root)
             return
         if not ada.isdigit():
-            messagebox.showwarning("Geçersiz Değer", "Ada numarası rakam olmalıdır.", parent=self._root)
+            messagebox.showwarning("Geçersiz", "Ada numarası rakam olmalıdır.", parent=self._root)
             return
         if not parsel.isdigit():
-            messagebox.showwarning("Geçersiz Değer", "Parsel numarası rakam olmalıdır.", parent=self._root)
+            messagebox.showwarning("Geçersiz", "Parsel numarası rakam olmalıdır.", parent=self._root)
             return
 
-        self._sonuc = (il, ilce, mahalle, ada, parsel)
-        self._root.destroy()
+        self._ciz_btn.config(state="disabled")
+        self._sonuc_label.config(fg="#e67e22")
+        self._sonuc_var.set("TKGM'den koordinatlar çekiliyor...")
+        self._root.update_idletasks()
 
-    def _iptal(self):
-        self._sonuc = None
+        threading.Thread(
+            target=self._ciz_thread,
+            args=(il, ilce, mahalle, ada, parsel),
+            daemon=True,
+        ).start()
+
+    def _ciz_thread(self, il, ilce, mahalle, ada, parsel):
+        pythoncom.CoInitialize()
+        try:
+            from autolay.core.baglanti import AutoCADConnector
+            connector = AutoCADConnector()
+            connector.baglan()
+
+            sonuc = TKGMOkuyucu().parsel_sorgula(il, ilce, mahalle, ada, parsel)
+
+            katman = "TKGM-ARSA"
+            LayerManager(connector).katman_olustur(katman, renk="yesil")
+            LayerManager(connector).aktif_katman_yap(katman)
+            GeometryDrawer(connector).lwpoligon_ciz(sonuc.koseler)
+            connector.aktif_cizim().Application.ZoomExtents()
+
+            self._root.after(0, lambda: self._ciz_tamam(sonuc))
+        except Exception as e:
+            self._root.after(0, lambda err=str(e): self._ciz_hata(err))
+        finally:
+            pythoncom.CoUninitialize()
+
+    def _ciz_tamam(self, sonuc):
+        self._sonuc_var.set(
+            f"✓  Çizildi!   {len(sonuc.koseler)} köşe  |  Alan ≈ {sonuc.alan_m2:.1f} m²  |  Katman: TKGM-ARSA"
+        )
+        self._sonuc_label.config(fg="#27ae60")
+        self._ciz_btn.config(state="normal")
+
+    def _ciz_hata(self, hata):
+        self._sonuc_var.set(f"✗  Hata: {hata}")
+        self._sonuc_label.config(fg="#c0392b")
+        self._ciz_btn.config(state="normal")
+
+    def _kapat(self):
         self._root.destroy()
 
     def goster(self):
-        """
-        Pencereyi açar ve kullanıcı girişini döndürür.
-
-        Dönüş:
-            tuple (il, ilce, mahalle, ada, parsel) — Sorgula butonuna basıldıysa
-            None — İptal edildiyse veya pencere kapatıldıysa
-        """
         self._root.mainloop()
-        return self._sonuc
 
 
-def parsel_bilgisi_al() -> tuple | None:
+def parsel_bilgisi_al(connector) -> None:
     """
-    Parsel bilgisi giriş penceresini açar.
+    Parsel çizici penceresini açar.
 
-    Dönüş:
-        (il, ilce, mahalle, ada, parsel) tuple veya None (iptal)
-
-    Hata:
-        RuntimeError: tkgm_idler.json bulunamazsa
+    connector: Bağlı AutoCADConnector nesnesi.
+    TKGM sorgusu ve AutoCAD çizimi pencere içinden yapılır.
     """
     idler = _idleri_yukle()
     if not idler:
         raise RuntimeError(
-            "tkgm_idler.json bulunamadı veya boş.\n"
-            "En az bir il için şunu çalıştırın:\n"
-            "  python tests/tkgm_id_olustur_hizli.py KONYA"
+            "idler.json bulunamadı veya boş.\n"
+            "Önce şunu çalıştırın:\n"
+            "  python autolay/tkgm/id_olustur.py KONYA"
         )
-
-    dialog = ParselDialog()
-    return dialog.goster()
+    ParselDialog(connector).goster()
 
 
-if __name__ == "__main__":
-    # Standalone test
-    import sys
-    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
-    sonuc = parsel_bilgisi_al()
-    if sonuc:
-        print(f"Seçilen: il={sonuc[0]}, ilçe={sonuc[1]}, mahalle={sonuc[2]}, ada={sonuc[3]}, parsel={sonuc[4]}")
-    else:
-        print("İptal edildi.")

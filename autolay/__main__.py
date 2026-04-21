@@ -1,80 +1,74 @@
 ﻿"""AutoLay komut satiri giris noktasi."""
 
+import tkinter as tk
+from tkinter import messagebox
+
 from autolay.core.baglanti import AutoCADConnector
 from autolay.core.hatalar import AktifCizimYokHatasi
-from autolay.cizim.shapes import GeometryDrawer
-from autolay.cizim.layers import LayerManager
-from autolay.tkgm.okuyucu import TKGMOkuyucu
+from autolay.core.autocad_bulucu import autocad_ac_ve_bekle
 from autolay.gui.parsel_dialog import parsel_bilgisi_al
 from autolay.utils.konsol import utf8_aktif_et
 
 
+def _hata_goster(mesaj: str):
+    """Tkinter messagebox ile hata penceresi açar."""
+    root = tk.Tk()
+    root.withdraw()
+    messagebox.showerror("AutoLay — Hata", mesaj)
+    root.destroy()
+
+
 def main() -> int:
-    """Uygulamayı başlatır: parsel sorgula ve AutoCAD'e çiz."""
     utf8_aktif_et()
 
     print("=" * 45)
     print("AutoLay — TKGM Parsel Çizici")
     print("=" * 45)
 
-    # 1. AutoCAD bağlantısını kur
     connector = AutoCADConnector()
-    try:
-        baglandi = connector.baglan()
-    except AktifCizimYokHatasi as hata:
-        print(f"HATA: {hata}")
-        return 1
 
-    if not baglandi:
-        print("HATA: AutoCAD'e bağlanılamadı. AutoCAD 2026 açık mı?")
-        return 1
+    # AutoCAD bağlantısı kurulana kadar döngüde bekle
+    while True:
+        try:
+            baglandi = connector.baglan()
+        except AktifCizimYokHatasi:
+            # AutoCAD açık ama DWG yok — otomatik yeni çizim aç
+            print("AutoCAD açık fakat çizim yok, yeni çizim açılıyor...")
+            try:
+                import win32com.client
+                acad = win32com.client.GetActiveObject("AutoCAD.Application")
+                acad.Documents.Add("")  # bos string = varsayilan sablon, dialog acma
+                import time; time.sleep(2)
+            except Exception as e:
+                _hata_goster(f"AutoCAD'de yeni çizim açılamadı.\nHata: {e}")
+                return 1
+            continue  # tekrar bağlanmayı dene
+
+        if baglandi:
+            break
+
+        # AutoCAD hiç açık değil — otomatik aç
+        print("AutoCAD bulunamadı, otomatik açılıyor...")
+        acildi = autocad_ac_ve_bekle()
+        if not acildi:
+            _hata_goster(
+                "AutoCAD bulunamadı veya açılamadı.\n\n"
+                "Lütfen AutoCAD'i manuel olarak açıp tekrar deneyin."
+            )
+            return 1
 
     print(f"AutoCAD bağlandı  : {connector.dosya_adi()}")
     print()
 
-    # 2. Parsel bilgisi giriş penceresi
     try:
-        secim = parsel_bilgisi_al()
+        parsel_bilgisi_al(connector)
     except RuntimeError as e:
-        print(f"HATA: {e}")
+        _hata_goster(str(e))
         return 1
 
-    if secim is None:
-        print("İşlem iptal edildi.")
-        return 0
-
-    il, ilce, mahalle, ada, parsel = secim
-    print(f"Parsel seçildi    : {il}/{ilce}/{mahalle}  Ada:{ada}  Parsel:{parsel}")
-
-    # 3. TKGM'den koordinatları çek
-    print("TKGM'den koordinatlar çekiliyor...")
-    okuyucu = TKGMOkuyucu()
-    try:
-        sonuc = okuyucu.parsel_sorgula(il, ilce, mahalle, ada, parsel)
-    except KeyError as e:
-        print(f"HATA: Önbellekte bulunamadı — {e}")
-        return 1
-    except RuntimeError as e:
-        print(f"HATA: {e}")
-        return 1
-
-    print(f"Koordinatlar alındı: {len(sonuc.koseler)} köşe, alan≈{sonuc.alan_m2:.1f} m²")
-
-    # 4. AutoCAD'de katmanı hazırla ve çiz
-    katman = "TKGM-ARSA"
-    katman_yoneticisi = LayerManager(connector)
-    katman_yoneticisi.katman_olustur(katman, renk="yesil")
-    katman_yoneticisi.aktif_katman_yap(katman)
-
-    cizici = GeometryDrawer(connector)
-    cizici.lwpoligon_ciz(sonuc.koseler)
-    connector.aktif_cizim().Application.ZoomExtents()
-
-    print(f"AutoCAD'e çizildi  : katman '{katman}'")
-    print()
-    print("Tamamlandı.")
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

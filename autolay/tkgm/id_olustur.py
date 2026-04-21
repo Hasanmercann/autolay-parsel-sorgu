@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../.
 
 from playwright.sync_api import sync_playwright
 
-CIKTI = os.path.join(os.path.dirname(__file__), "..", "autolay", "okuyucu", "tkgm_idler.json")
+CIKTI = os.path.join(os.path.dirname(__file__), "idler.json")
 
 
 def il_cek(hedef_il: str):
