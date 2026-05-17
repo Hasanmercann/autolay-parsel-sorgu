@@ -1,0 +1,42 @@
+# Sanal ortam
+venv/
+.venv/
+env/
+
+# Python önbellek
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Log dosyaları
+logs/
+*.log
+
+# VS Code ayarları
+.vscode/
+
+# Claude Code dosyaları
+.claude/
+
+# Yedek dosyalar
+*.bak
+*.dwl
+*.dwl2
+
+# OS
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# Playwright
+playwright-report/
+test-results/
